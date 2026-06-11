@@ -46,9 +46,13 @@ mc.world.afterEvents.playerBreakBlock.subscribe((ev: mc.PlayerBreakBlockAfterEve
 
     consumeSeed(inv.container, slot);
 
+    const pos: mc.Vector3 = ev.block.location;
+    const dim: mc.Dimension = ev.player.dimension;
+    const brokenPerm: mc.BlockPermutation = ev.brokenBlockPermutation;
+
     mc.system.run((): void => {
-        const pos: mc.Vector3 = ev.block.location;
-        const perm: mc.BlockPermutation = mc.BlockPermutation.resolve(typeId, { age: 0 });
-        ev.player.dimension.getBlock(pos)?.setPermutation(perm);
+        const block: mc.Block | undefined = dim.getBlock(pos);
+        if (!block) return;
+        block.setPermutation(brokenPerm.withState("age", 0));
     });
 });
