@@ -1,58 +1,85 @@
 import * as mc from "@minecraft/server";
 
-interface CropData {
-    seedId: string;
-    matureAge: number;
+const ORES = new Set<string>([
+    "minecraft:diamond_ore",
+    "minecraft:deepslate_diamond_ore",
+    "minecraft:iron_ore",
+    "minecraft:deepslate_iron_ore",
+    "minecraft:gold_ore",
+    "minecraft:deepslate_gold_ore",
+    "minecraft:coal_ore",
+    "minecraft:deepslate_coal_ore",
+    "minecraft:emerald_ore",
+    "minecraft:deepslate_emerald_ore",
+    "minecraft:ancient_debris",
+    "minecraft:lapis_ore",
+    "minecraft:deepslate_lapis_ore",
+    "minecraft:redstone_ore",
+    "minecraft:deepslate_redstone_ore",
+    "minecraft:copper_ore",
+    "minecraft:deepslate_copper_ore",
+]);
+
+const OFFSETS: mc.Vector3[] = [];
+for (const dx of [-1, 0, 1]) {
+    for (const dy of [-1, 0, 1]) {
+        for (const dz of [-1, 0, 1]) {
+            if (dx === 0 && dy === 0 && dz === 0) continue;
+            OFFSETS.push({ x: dx, y: dy, z: dz });
+        }
+    }
 }
 
-const CROPS: Record<string, CropData> = {
-    "minecraft:wheat":     { seedId: "minecraft:wheat_seeds", matureAge: 7 },
-    "minecraft:carrots":   { seedId: "minecraft:carrot",      matureAge: 7 },
-    "minecraft:potatoes":  { seedId: "minecraft:potato",      matureAge: 7 },
-    "minecraft:beetroots": { seedId: "minecraft:beetroot_seeds", matureAge: 3 },
-};
+function floodFill(dim: mc.Dimension, start: mc.Vector3, typeId: string, limit: number): mc.Vector3[] {
+    const result: mc.Vector3[] = [];
+    const visited = new Set<string>();
+    const queue: mc.Vector3[] = [start];
+    const key = (v: mc.Vector3): string => `${v.x},${v.y},${v.z}`;
 
-function findSeedSlot(container: mc.Container, seedId: string): number {
-    for (let i = 0; i < container.size; i++) {
-        const item: mc.ItemStack | undefined = container.getItem(i);
-        if (item?.typeId === seedId) return i;
-    }
-    return -1;
-}
+    visited.add(key(start));
 
-function consumeSeed(container: mc.Container, slot: number): void {
-    const item: mc.ItemStack = container.getItem(slot)!;
-    if (item.amount > 1) {
-        item.amount -= 1;
-        container.setItem(slot, item);
-    } else {
-        container.setItem(slot, undefined);
+    while (queue.length > 0 && result.length < limit) {
+        const current = queue.shift()!;
+        result.push(current);
+
+        for (const off of OFFSETS) {
+            const next: mc.Vector3 = {
+                x: current.x + off.x,
+                y: current.y + off.y,
+                z: current.z + off.z,
+            };
+            const k = key(next);
+            if (visited.has(k)) continue;
+            visited.add(k);
+            const block = dim.getBlock(next);
+            if (block?.typeId === typeId) {
+                queue.push(next);
+            }
+        }
     }
+
+    return result;
 }
 
 mc.world.afterEvents.playerBreakBlock.subscribe((ev: mc.PlayerBreakBlockAfterEvent): void => {
     const typeId: string = ev.brokenBlockPermutation.type.id;
-    const crop: CropData | undefined = CROPS[typeId];
-    if (!crop) return;
+    if (!ORES.has(typeId)) return;
 
-    const age: number = ev.brokenBlockPermutation.getState("age") as number;
-    if (age < crop.matureAge) return;
-
-    const inv = ev.player.getComponent("minecraft:inventory") as mc.EntityInventoryComponent | undefined;
-    if (!inv?.container) return;
-
-    const slot: number = findSeedSlot(inv.container, crop.seedId);
-    if (slot === -1) return;
-
-    consumeSeed(inv.container, slot);
-
+    const player: mc.Player = ev.player;
+    const dim: mc.Dimension = player.dimension;
     const pos: mc.Vector3 = ev.block.location;
-    const dim: mc.Dimension = ev.player.dimension;
-    const brokenPerm: mc.BlockPermutation = ev.brokenBlockPermutation;
+
+    const blocks: mc.Vector3[] = floodFill(dim, pos, typeId, 32);
 
     mc.system.run((): void => {
-        const block: mc.Block | undefined = dim.getBlock(pos);
-        if (!block) return;
-        block.setPermutation(brokenPerm.withState("age", 0));
+        for (const bp of blocks) {
+            const block = dim.getBlock(bp);
+            if (!block || block.typeId !== typeId) continue;
+            block.setType("minecraft:air");
+            dim.spawnItem(
+                new mc.ItemStack(typeId.replace("_ore", "").replace("minecraft:deepslate_", "minecraft:") + (typeId.includes("_ore") ? "" : ""), 1),
+                { x: bp.x + 0.5, y: bp.y + 0.5, z: bp.z + 0.5 }
+            );
+        }
     });
 });
