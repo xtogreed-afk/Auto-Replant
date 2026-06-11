@@ -30,14 +30,6 @@ function consumeSeed(container: mc.Container, slot: number): void {
     }
 }
 
-function replant(dimension: mc.Dimension, pos: mc.Vector3, cropId: string): void {
-    mc.system.run((): void => {
-        dimension.runCommand(
-            `setblock ${pos.x} ${pos.y} ${pos.z} ${cropId} ["age":0]`
-        );
-    });
-}
-
 mc.world.afterEvents.playerBreakBlock.subscribe((ev: mc.PlayerBreakBlockAfterEvent): void => {
     const typeId: string = ev.brokenBlockPermutation.type.id;
     const crop: CropData | undefined = CROPS[typeId];
@@ -53,5 +45,10 @@ mc.world.afterEvents.playerBreakBlock.subscribe((ev: mc.PlayerBreakBlockAfterEve
     if (slot === -1) return;
 
     consumeSeed(inv.container, slot);
-    replant(ev.player.dimension, ev.block.location, typeId);
+
+    mc.system.run((): void => {
+        const pos: mc.Vector3 = ev.block.location;
+        const perm: mc.BlockPermutation = mc.BlockPermutation.resolve(typeId, { age: 0 });
+        ev.player.dimension.getBlock(pos)?.setPermutation(perm);
+    });
 });
