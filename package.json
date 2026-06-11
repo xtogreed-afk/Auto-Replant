@@ -1,0 +1,11 @@
+{
+    "devDependencies": {
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@minecraft/server": "2.7.0"
+    },
+    "scripts": {
+        "build": "tsc"
+    }
+}

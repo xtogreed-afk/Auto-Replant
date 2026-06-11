@@ -1,0 +1,30 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "AutoReplant [BP]",
+        "description": "Automatically replants crops when harvested",
+        "uuid": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 26, 20]
+    },
+    "modules": [
+        {
+            "type": "data",
+            "uuid": "d2e3f4a5-b6c7-8901-defa-23456789abcd",
+            "version": [1, 0, 0]
+        },
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "e3f4a5b6-c7d8-9012-efab-3456789abcde",
+            "entry": "scripts/main.js",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "module_name": "@minecraft/server",
+            "version": "2.7.0"
+        }
+    ]
+}
